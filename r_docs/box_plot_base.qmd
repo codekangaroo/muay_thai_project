@@ -1,0 +1,41 @@
+---
+title: "Box Plot base code"
+author: "Petri Haavisto"
+format: html
+editor: visual
+---
+
+## Base Code for Box Plots
+
+Here we are using a data set that is built in R.
+
+First load library tidyverse
+
+```{r}
+library(tidyverse)
+```
+
+Then we load our test data
+
+```{r}
+data()
+view(msleep)
+names(msleep)
+```
+
+Let's pipe data in to the plot.
+
+```{r}
+msleep |> 
+  drop_na(vore) |> #use this if you have NA variables
+  ggplot(aes(vore, sleep_total))+ # x and y axis
+  geom_boxplot()+
+  coord_flip()+ # do we want vertical or horizontal?
+  theme_bw()
+```
+
+Same with the facet wrap.
+
+```{r}
+
+```

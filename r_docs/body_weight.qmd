@@ -1,0 +1,65 @@
+---
+title: "lmerTest experiments"
+author: "Petri Haavisto"
+format: html
+editor: visual
+---
+
+## lmerTest: Tests in Linear Mixed Effects Models
+
+Key function lmer() overloads lme4::lmer. Check out the Help-file with ?lmerTest.
+
+```{r}
+library(conflicted)  
+library(tidyverse)
+library(sjPlot)
+library(lmerTest)
+conflict_prefer("filter", "dplyr")
+conflict_prefer("lag", "dplyr")
+conflicts_prefer(lmerTest::lmer)
+```
+
+```{r}
+body <- here::here("data/body_weight.csv") |> readr::read_csv()
+```
+
+```{r}
+view(body)
+cols = rainbow(4) #make colors for 4 subjects
+plot(body$Time, body$Weight, col=cols[body$ID ], pch=16)
+```
+
+Trying regular linear model first
+
+```{r}
+m = lm(Weight ~ Time, data = body)
+tab_model(m)
+```
+
+And plot again
+
+```{r}
+plot(body$Time, body$Weight, col=cols[body$ID ], pch=16)
+abline(coef(m)[1], coef(m)[2])
+```
+
+Next we are going to add another level (ID). So we get **random intercepts.** So we are telling R that we have random intercepts for every person.
+
+```{r}
+m_ri = lmer(Weight ~ Time + (1 | ID), data = body)
+```
+
+Plot with added level
+
+```{r}
+plot(body$Time, body$Weight, col=cols[body$ID], pch=16)
+for (i in 1:4) { ## for each subject
+  abline(coef(m_ri)$ID[i,1], coef(m_ri)$ID[i,2], col=cols[i] )
+}
+```
+
+Let's have look of the model.
+
+```{r}
+tab_model(m_ri)
+```

@@ -1,0 +1,100 @@
+---
+?---
+title: "visualizing data"
+author: "Petri Haavisto"
+format: html
+editor: visual
+---
+
+## Preparations before we start
+
+Installing tidyverse and "here" packages (one time\*). Here function returns the path of your current project. These are installed from CRAN (Comprehensive R Archive Network).
+
+\*unfortunately packages need to be re-installed when R/RStudio is re-installed/updated
+
+```{r}
+# Install from CRAN
+install.packages("tidyverse")
+install.packages("here")
+```
+
+```{r}
+install.packages("lmerTest")
+```
+
+Let's load whole tidyverse ecosystem. "Conflicted" is way to tackle possible conflict between packages.
+
+```{r}
+library(conflicted)  
+library(tidyverse)
+library(lmerTest)
+conflict_prefer("filter", "dplyr")
+conflict_prefer("lag", "dplyr")
+```
+
+We start by loading the data file
+
+```{r}
+hin
+```
+
+Let's have glimpse of data
+
+```{r}
+glimpse(hma_tib)
+```
+
+That wasn't very helpful so let's divide data to different groups starting with InterV_PRE_1 :
+
+```{r}
+inter1 <- hma_tib |> 
+  filter(Group == "InterV_PRE_1")
+```
+
+glimpse of new group:
+
+```{r}
+glimpse(inter1)
+```
+
+Plot of relationships of InterV_PRE_1 -group
+
+```{r}
+#na.rm removes empty values without warning
+#added fourth group here (4 = "Unknown")
+
+gb <- ggplot(inter1, aes(x  = Living_with_1Single_2Married_3living_together)) +
+  geom_bar() +
+  theme(axis.title.x = element_blank())
+gb +  scale_x_discrete(limits=c("Partner", "Single", "Married", "Unknown"))
+
+#Once you have created a plot, you can save it to projects images folder
+ggsave(filename = "relationship_group1.png", path = here::here("images"))
+```
+
+Next let's select only certain information of first group: code, group, gender, relationship and SF12MCS.
+
+```{r}
+inter1_lite <- inter1 |> 
+  select(ParticipantCode, Group, Gender_1M_2F, Living_with_1Single_2Married_3living_together, SF12PCS, SF12MCS )
+```
+
+```{r}
+inter1_lite
+```
+
+```{r}
+  ggplot(interlaes(SF12PCS, SF12MCS)) +
+  geom_point()
+```
+
+Let's calculate SF12MSC mean of group 1:
+
+```{r}
+# Convert the character data type of SF12MSC to numeric
+inter_lite1$SF12MCS <- as.numeric(inter_lite1$SF12MCS)
+# Calculate the average SF12MSC score
+mean_score <- mean(inter_lite1$SF12MCS, na.rm = TRUE)
+message <- paste("The mean Score is: ",mean_score)
+print(message)
+```

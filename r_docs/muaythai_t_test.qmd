@@ -1,0 +1,96 @@
+---
+title: "Muay Thai t-test"
+author: "Petri Haavisto"
+format: html
+editor: visual
+---
+
+## Muay Thai Group *t*-test
+
+1\) Librariest to use
+
+```{r}
+library(conflicted)
+library(tidyverse)
+library(pastecs)
+library(reshape2)
+conflict_prefer("filter", "dplyr")
+conflict_prefer("lag", "dplyr")
+```
+
+2\) Read raw data to a tibble
+
+```{r}
+raw <- here::here("data/raw_muaythai_data.csv") |> readr::read_csv()
+```
+
+3\) Next we filter only columns: ParticipantCode, Time and OUTCOME-variable
+
+```{r}
+(df <- raw |> 
+  select(ParticipantCode, Time, PERMA_WellBeing))
+```
+
+4\) Rename columns
+
+```{r}
+colnames(df) <- c("id", "Time", "Outcome")
+#view(df)
+```
+
+5\) Create wide view
+
+```{r}
+intervention_group <- dcast(df, id~Time, value="Outcome")
+```
+
+6\) Rename columns and CHECK THE DATA
+
+```{r}
+colnames(intervention_group) <- c("id", "Pre", "Post")
+view(intervention_group)
+```
+
+7.1) After this, we don't need id column any more
+
+```{r}
+intervention_group <- intervention_group |>  select(-id)
+```
+
+7.2) Descriptive statistics
+
+```{r}
+stat.desc(intervention_group, basic = FALSE, norm = FALSE)
+
+```
+
+8\) Calculate differences
+
+```{r}
+intervention_group$diff <- intervention_group$Post - intervention_group$Pre
+mean(intervention_group$diff)
+view(intervention_group)
+```
+
+9\) We can do normality tests for differences using the stat.desc() function.
+
+```{r}
+norm_test <- stat.desc(intervention_group$diff, basic = FALSE, desc = FALSE, norm = TRUE)
+print (norm_test[6])
+```
+
+10\) Do the t-test and view results
+
+```{r}
+dep_t_test <- t.test(intervention_group$Post, intervention_group$Pre, paired = TRUE)
+dep_t_test
+```
+
+11\) Calculate the effect size. 0.5 is threshold for a large effect.
+
+```{r}
+t <- dep_t_test$statistic[[1]]
+df <- dep_t_test$parameter[[1]]
+r <- sqrt(t^2/(t^2+df))
+round(r, 3)
+```

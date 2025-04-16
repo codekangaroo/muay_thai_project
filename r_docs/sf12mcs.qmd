@@ -1,0 +1,74 @@
+---
+title: "SF12MCS"
+author: "Petri Haavisto"
+format: html
+editor: visual
+---
+
+## SF12MCS
+
+Libraries:
+
+```{r}
+library(conflicted)  
+library(tidyverse)
+library(sjPlot)
+library(lmerTest)
+conflict_prefer("filter", "dplyr")
+conflict_prefer("lag", "dplyr")
+conflicts_prefer(lmerTest::lmer)
+```
+
+Next raw data to the structure:
+
+```{r}
+raw <- here::here("data/raw_data.csv") |> readr::read_csv()
+```
+
+Next we filter only certain columns: ParticipantCode, Group, Time and SF12MCS. (Pipe=Ctrl+Shift+M)
+
+```{r}
+df <- raw |> 
+  select(ParticipantCode, Group, Time, SF12MCS)
+```
+
+View data to check that everything is in order.
+
+```{r}
+view(df)
+```
+
+Linear mixed effects model:
+
+```{r}
+M1 <- lmer(SF12MCS ~ Time*Group+(1|ParticipantCode), REML=F, data=df)
+summary(M1)
+```
+
+Tab model:
+
+```{r}
+tab_model(M1)
+```
+
+Fit another linear mixed-effects model:
+
+```{r}
+M2 <- lmer(SF12MCS ~ Time+Group+Time*Group+(1|ParticipantCode), REML = F, data=df)
+summary(M2)
+```
+
+Comparison of M1 and M2 with anova tells that there is no difference with these two models so let's use M1:
+
+```{r}
+anova(M1, M2)
+```
+
+Let's run ANOVA analysis to the model and calculate effect sizes.
+
+```{r}
+avc = anova(M1)
+avc <- avc[,c(1:3,5,6)]
+colnames(avc) <- c("sum sq", "mean sq", "DF", "F-value", "p-value")
+view(avc)
+```

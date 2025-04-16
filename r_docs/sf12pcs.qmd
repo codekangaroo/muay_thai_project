@@ -1,0 +1,79 @@
+---
+title: "sf12pcs"
+format: html
+editor: visual
+---
+
+## Analyse sf12pcs
+
+```{r}
+library(conflicted)  
+library(tidyverse)
+library(sjPlot)
+library(lmerTest)
+conflict_prefer("filter", "dplyr")
+conflict_prefer("lag", "dplyr")
+conflicts_prefer(lmerTest::lmer)
+```
+
+Read in data with sf12pcs results.
+
+```{r}
+df <- here::here("data/Dan_1.csv") |> readr::read_csv()
+```
+
+We can have look of data.
+
+```{r}
+view(df)
+```
+
+Let's try regular linear model first
+
+```{r}
+m = lm(SF12PCS ~ Time, data = df)
+tab_model(m)
+```
+
+And then mixed model
+
+```{r}
+M4 <- lmer(SF12PCS ~ Time+(1|ParticipantCode), REML=F, data=df)
+summary(M4)
+```
+
+```{r}
+ranef(M4)
+```
+
+```{r}
+M2 <- lmer(SF12PCS ~ Time+Group+(1|ParticipantCode), REML=F, data=df)
+summary(M2)
+```
+
+```{r}
+ranef(M2)
+```
+
+```{r}
+tab_model(M2)
+```
+
+```{r}
+M1 <- lmer(SF12PCS ~ Time*Group+(1|ParticipantCode), REML=F, data=df)
+summary(M1)
+```
+
+```{r}
+tab_model(M1)
+```
+
+```{r}
+ranef(M1)
+```
+
+ANOVA
+
+```{r}
+anova(M1, M2)
+```

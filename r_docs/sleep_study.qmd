@@ -1,0 +1,106 @@
+---
+title: "Testing lmer with sleepstudy"
+author: "Petri Haavisto"
+format: html
+editor: visual
+---
+
+## Testing Mixed models with sleep study data
+
+```{r}
+library(conflicted)  
+library(tidyverse)
+library(sjPlot)
+library(lmerTest)
+conflict_prefer("filter", "dplyr")
+conflict_prefer("lag", "dplyr")
+conflicts_prefer(lmerTest::lmer)
+```
+
+Comparison of different models: (**y \~ x means "y predicted by x")**
+
+lm(y \~ x) \## *linear model*
+
+glm(y \~ x, family = binomial) \## *generalized linear model*
+
+lmer(y \~ x, + (1 \| group)) \## *multilevel models*
+
+glmer(y\~x + (1 \| group), family = binomial) \## *multilevel logistic or Poisson regression*
+
+```{r}
+d <- here::here("data/sleepstudy.csv") |> readr::read_csv()
+```
+
+```{r}
+view(d)
+cols = rainbow(5) #make colors for 5 subjects
+plot(d$Days, d$Reaction, col=cols[d$Subject], pch=16)
+```
+
+See what happens if we fit a regular linear regression and plot the regression line.
+
+```{r}
+m = lm(Reaction ~ Days, data=d)
+tab_model(m)
+```
+
+And we can visualize this.
+
+```{r}
+plot(d$Days, d$Reaction, col=cols[d$Subject], pch = 16)
+abline(coef(m)[1], coef(m)[2])
+```
+
+Next we improve this with Multilevel model with random intercepts. In other words we add random component of another level of data.
+
+```{r}
+m_ri = lmer(Reaction ~ Days + (1 | Subject), data=d)
+```
+
+And we can plot it.
+
+```{r}
+plot(d$Days, d$Reaction, col = cols[d$Subject], pch = 16)
+for (i in 1:5){ ##for each Subject
+  abline(coef(m_ri)$Subject[i,1], coef(m_ri)$Subject[i,2], col = cols[i])
+}
+
+```
+
+Let's have a look of the model
+
+```{r}
+tab_model(m_ri)
+```
+
+Next we can expand our multilevel model by using random intercepts AND **random slopes**.
+
+```{r}
+#random intercept and random slope(Days)
+m_rs = lmer(Reaction ~ Days + (1 + Days | Subject), data=d)
+tab_model(m_rs)
+```
+
+And then plot it.
+
+```{r}
+plot(d$Days, d$Reaction, col = cols[d$Subject], pch = 16)
+for (i in 1:5){ ##for each Subject
+  abline(coef(m_rs)$Subject[i,1], coef(m_rs)$Subject[i,2], col = cols[i])
+}
+```
+
+## Comparing multilevel models
+
+By comparing models, we can see how the variance at different levels changes. Here we first make a base model, which is a random intercepts model without any predictor variables. Then we add Days at the individual level, and finally we add the random slopes for Days.
+
+```{r}
+m_base = lmer(Reaction ~ (1 | Subject), data = d)
+m_1 = lmer(Reaction ~ Days + (1 | Subject), data = d)
+m_2 = lmer(Reaction ~ Days + (1 + Days | Subject), data = d)
+anova(m_base, m_1, m_2)
+```
+
+```{r}
+tab_model(m_base, m_1, m_2)
+```

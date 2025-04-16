@@ -1,0 +1,190 @@
+---
+title: "raw_data test"
+author: "Petri Haavisto"
+format: html
+editor: visual
+---
+
+## Raw-data test.
+
+Goal: to take data from raw_data.csv and then select certain columns to data structure we are going to use
+
+1\) First libraries we are going to use:
+
+```{r}
+library(conflicted)  
+library(tidyverse)
+library(sjPlot)
+library(lmerTest)
+conflict_prefer("filter", "dplyr")
+conflict_prefer("lag", "dplyr")
+conflicts_prefer(lmerTest::lmer)
+```
+
+2\) Next we read raw_data.csv into a tibble. Tibble is a modern version of data frame.
+
+```{r}
+raw <- here::here("data/raw_data.csv") |> readr::read_csv()
+```
+
+3\) Next we filter only certain columns: ParticipantCode, Group, Time and SF12PCS. Pipe=Ctrl+Shift+M.
+
+```{r}
+(df <- raw |> 
+  select(ParticipantCode, Group, Time, GAD_Score))
+```
+
+Extra 1: We can remove certain individuals from data. Use with caution! Remove comments to use.
+
+```{r}
+# ONLY USE IF REALLY NECESSARY!
+#df <- df |> 
+#  filter(ParticipantCode != 211)
+```
+
+Extra 2: We can have a look of structure we filtered and make sure everything is all right.
+
+```{r}
+view(df)
+```
+
+Extra 3: If you wonder what type of variables columns are you can check it.
+
+```{r}
+sapply(df, class)
+```
+
+Extra 4: Sometimes there is a need to convert columns to different data types. Usually not necessary. Remove comments to use.
+
+```{r}
+#df <- transform(df, Self_Efficacy_Exercise_SEE = as.numeric(Self_Efficacy_Exercise_SEE ))
+```
+
+4\) Fitting Linear mixed-effects model.
+
+```{r}
+M1 <- lmer(GAD_Score  ~ Time*Group+(1|ParticipantCode), REML=F, data=df)
+summary(M1)
+```
+
+5\) Tab model:
+
+```{r}
+tab_model(M1)
+```
+
+6\) Calculate group-level averages and standard deviations. Remember to change the variable!
+
+```{r}
+group_avg <- df %>%
+  group_by(Group, Time) %>%
+  summarise(
+    Average = mean(GAD_Score, na.rm = TRUE), 
+    SD = sd(GAD_Score, na.rm = TRUE),
+    SE = SD / sqrt(n()),
+    .groups = 'drop'
+  )
+```
+
+\########### PLOTS START FROM HERE \###############################################
+
+Plot 1: Spaghetti plot of Scores. Remember to change the variable names!
+
+```{r}
+my_favourite_colors <- c("#92D050", "#00B0F0")
+ggplot() +
+  geom_line(data = df, aes(x = Time, y = GAD_Score, group = ParticipantCode), alpha = 0.3) +
+  geom_point(data = df, aes(x = Time, y = GAD_Score, group = ParticipantCode), size = 2, shape = 21, fill = "grey") +
+  geom_line(data = group_avg, aes(x = Time, y = Average, group = Group, color = Group), size = 1.2) +
+  geom_point(data = group_avg, aes(x = Time, y = Average, color = Group), size = 3) +
+  facet_grid(. ~ Group) +
+  labs(title = "Spaghetti plot of outcome over time by treatment group", 
+       y = "GAD_Score", 
+       x = "Time") +
+  scale_color_manual(values=my_favourite_colors)+
+  guides(color=FALSE)+
+  #scale_color_brewer(palette = "Set1") +
+  theme_minimal()
+ggsave(filename = "../images/gad_score_spaghetti.png")
+```
+
+Plot 2: Box plot. Remember to change the variable name! This is supervisors version.
+
+```{r}
+qplot(interaction(Time, Group), GAD_Score, data = df, geom = "boxplot") + aes(fill = Group) +
+  theme(axis.text = element_text(size = 8),
+        legend.text = element_text(size = 8),
+        legend.position = "top",
+        legend.title = element_text(size = 9),
+        axis.title = element_text(size = 10),
+        plot.title = element_text(size = 10, face = "bold")) + 
+  scale_fill_brewer(palette ="Paired") +
+  labs(title = "Box plot of GAD_Score over time by treatment group", y = "GAD_Score", x = "Time, Treatment group") + guides(fill=guide_legend(title="Treatment Group"))
+```
+
+Plot 3: Also box plot but this time with ggplot.
+
+```{r}
+my_favourite_colors <- c("#92D050", "#00B0F0")
+df |> 
+  ggplot(aes(interaction(Time,Group), GAD_Score, fill=Group))+ 
+  geom_boxplot()+
+  coord_flip()+
+  theme_bw()+
+  guides(fill=FALSE)+
+  scale_fill_manual(values=my_favourite_colors)+
+  labs(title = "Box plot of GAD_Score over time by treatment group",x="Group & Time",y=    "GAD_Score")
+ggsave(filename = "../images/gad_score_boxplot.png")
+```
+
+Plot 4: Generate interaction plot. Supervisor version.
+
+```{r}
+ggplot(group_avg, aes(x = Time, y = Average, color = Group, group = Group)) +
+  geom_line(size = 1.2) +  # Line for group means
+  geom_point(size = 3) +  # Points for group means
+  geom_errorbar(aes(ymin = Average - SE, ymax = Average + SE), width = 0.2) +  # Error bars
+  labs(
+    title = "Interaction Plot of GAD_Score by Time and Group",
+    x = "Time",
+    y = "Mean GAD_Score",
+    color = "Group"
+  ) +
+  theme_minimal() +
+  scale_color_brewer(palette = "Set1") +
+  theme(
+    legend.position = "top",
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+```
+
+Plot 4: Interaction Plot. Own version.
+
+```{r}
+my_favourite_colors <- c("#92D050", "#00B0F0")
+ggplot(group_avg, aes(x = Time, y = Average, color = Group, group = Group)) +
+  geom_line(size = 1.2) +  # Line for group means
+  scale_color_manual(values=my_favourite_colors)+
+  scale_fill_manual(values=my_favourite_colors)+
+  geom_point(size = 3, shape = 21, color = "black", aes(fill = Group)) +  # Points for group means
+  geom_errorbar(aes(ymin = Average - SE, ymax = Average + SE), width = 0.2) +  # Error bars
+  labs(
+    title = "Interaction Plot of GAD_Score by Time and Group",
+    x = "Time",
+    y = "Mean GAD_Score",
+    color = "Group"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+ggsave(filename = "../images/gad_score_interaction_plot.png")
+```
+
+Generate plot for assumptions.
+
+```{r}
+plot(M1)
+qqnorm(residuals(M1))
+```

@@ -1,0 +1,113 @@
+---
+title: "Martial Arts raw results"
+author: "Petri Haavisto"
+format: html
+editor: visual
+---
+
+## Adjusted values for Error Bar
+
+Pipe=Ctrl+Shift+M.
+
+Left Arrow = Alt and - (minus)
+
+1\) First libraries we are going to use:
+
+```{r}
+library(conflicted)  
+library(tidyverse)
+library(sjPlot)
+library(reshape2)
+conflict_prefer("filter", "dplyr")
+conflict_prefer("lag", "dplyr")
+```
+
+2\) Next we read raw_data.csv into a tibble. Tibble is a modern version of data frame.
+
+```{r}
+raw <- here::here("data/raw_muaythai_data.csv") |> readr::read_csv()
+```
+
+3\) Next we filter only certain columns: ParticipantCode, Group, Time and OUTCOME-variable
+
+```{r}
+(df <- raw |> 
+  select(ParticipantCode,Time, SF12MCS))
+```
+
+4\) Rename OUTCOME variable as outcome, so we don't have to rename it to all possible places. Also shorten the Participantcode to id.
+
+```{r}
+colnames(df) <- c("id", "Time", "Outcome")
+```
+
+6\) We can have a look of structure we filtered and make sure everything is all right.
+
+```{r}
+view(df)
+```
+
+7\) Create wide view.
+
+```{r}
+wide_df <- dcast(df, id~Time, value="Outcome")
+```
+
+9\) Rename columns
+
+```{r}
+colnames(wide_df) <- c("id", "Pre", "Post")
+view(wide_df)
+```
+
+------------------------------------------------------------------------
+
+### Calculations starts here
+
+1\) Calculate pMean for every participant
+
+```{r}
+wide_df$pMean <- (wide_df$Pre + wide_df$Post)/2 
+```
+
+2\) Calculate Grand Mean
+
+```{r}
+grandMean <- mean(c(wide_df$Pre, wide_df$Post))
+grandMean
+```
+
+3\) Calculate Adjustment factor (grandMean - pMean)
+
+```{r}
+wide_df$adj <- grandMean - wide_df$pMean
+```
+
+4\) Create adjusted values for pre and post
+
+```{r}
+wide_df$pre_adj <- wide_df$Pre + wide_df$adj
+wide_df$post_adj <- wide_df$Post + wide_df$adj
+view(wide_df)
+```
+
+5\) we can put data to long form again
+
+```{r}
+adjusted_df <- melt(wide_df, id = c("id", "Pre", "Post", "pMean", "adj"), measured = c("pre_adj", "real_adj"))
+view(adjusted_df)
+```
+
+6\) Remove unwanted columns
+
+```{r}
+adjusted_df <- adjusted_df[, -c(2:5)]
+names(adjusted_df) <- c("id", "Time", "Variable")
+view(adjusted_df)
+```
+
+7\) Let's graph error bars based on adjusted data
+
+```{r}
+bar <- ggplot(adjusted_df, aes(Time, Variable))
+```

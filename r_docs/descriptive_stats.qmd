@@ -1,0 +1,106 @@
+---
+title: "Descriptive Statistics"
+author: "Petri Haavisto"
+format: html
+editor: visual
+---
+
+## Descriptive statistics to summarize the characteristics of the data
+
+1 First load libraries:
+
+```{r}
+library(conflicted)  
+library(tidyverse)
+library(sjPlot)
+library(lmerTest)
+conflict_prefer("filter", "dplyr")
+conflict_prefer("lag", "dplyr")
+conflicts_prefer(lmerTest::lmer)
+```
+
+2 Next we read raw_data.csv into a tibble. Tibble is a modern version of data frame
+
+```{r}
+raw <- here::here("data/raw_data.csv") |> readr::read_csv() 
+```
+
+3 Next we filter away unnecessary columns and leave only data of interests.
+
+```{r}
+(df <- raw |> 
+  select(ParticipantCode, Group, Gender_1M_2F))
+```
+
+4 Rename Columns.
+
+```{r}
+colnames(df) <- c("participant", "group", "gender")
+```
+
+5 Remove doubles (we need only one row per participant).
+
+```{r}
+df <- df |> distinct(participant, group, gender)
+```
+
+6 We can have a look of structure we filtered and make sure everything is all right.
+
+```{r}
+view(df)
+```
+
+7 Create a gender plot by group.
+
+```{r}
+df |> 
+  ggplot(aes(group, fill=gender))+
+  geom_bar(position = "dodge", alpha = 0.5)+ #dodge separates bars
+  theme_bw()+
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())+
+  labs(title = "Gender by group",
+       x = "Group",
+       y = "n")
+  ggsave(filename = "../images/gender_by_group.png")
+```
+
+8 Also a gender plot but now with the facet.
+
+```{r}
+df |> 
+  ggplot(aes(x = gender))+
+  geom_bar(aes(fill=gender), alpha = 0.5)+ 
+  facet_wrap(~ group)+
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())+
+  labs(title = "Gender by group",
+       x = "",
+       y = "n")
+  ggsave(filename = "../images/gender_by_group_facet.png")
+```
+
+9 Next same but with education
+
+```{r}
+(df2 <- raw |> 
+  select(ParticipantCode, Group, EDU_1Primary_2Seconday_3Tertiary))
+```
+
+10 Rename columns
+
+```{r}
+colnames(df2) <- c("participant", "group", "education")
+```
+
+11 Remove doubles (we need only one row per participant.
+
+```{r}
+df2 <- df2 |> distinct(participant, group, education)
+```
+
+12 We can have a look of structure we filtered and make sure everything is all right.
+
+```{r}
+view(df2)
+```

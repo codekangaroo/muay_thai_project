@@ -1,0 +1,253 @@
+---
+title: "Dan Script"
+author: "Petri Haavisto"
+format: html
+editor: visual
+---
+
+## These are scripts by supervisors
+
+```{r}
+library(lmerTest)
+library(lsmeans)
+library(emmeans)
+library(dplyr)
+library(ggplot2)
+library(effectsize)
+library(pwr)
+library(ggdist)
+```
+
+First we read all data from XLSX file. Install package openxlsx, if you don't have it. Also match the path to he destination where you keep the xlsx-file.
+
+```{r}
+#If needed remove comment from next line:
+#install.packages("openxlsx")
+DansData <- openxlsx::read.xlsx("D:/R_kioski/hma_r_project/data/Original Protected Dan File/DanSullivanData.xlsx", sheet = "HMA_DATA_LONG_V", na.strings = c("","NA", "#NULL!"))
+str(DansData)
+```
+
+Next we are factoring some variables:
+
+```{r}
+DansData$Group <- factor(DansData$Group, levels = c("Control", "Intervention"))
+DansData$Time <- factor(DansData$Time, levels = c("Pre", "Post"))
+```
+
+Then we are fitting Linear mixed-effects model. This time we did SF12MCS, but change it to different variable when needed.
+
+```{r}
+LMEresultSF12MCS <- lmer(SF12MCS~ Time+Group+Time*Group+(1|ParticipantCode),data=DansData)
+```
+
+Then we are running ANOVA analysis on the model and calculate effect sizes (η²).
+
+```{r}
+avcSF12MCS = anova(LMEresultSF12MCS)
+avcSF12MCS <- avcSF12MCS[,c(1:3,5,6)]
+colnames(avcSF12MCS)<-c("Sum Sq", "Mean sq","DF", "F-value", "p-value")
+avceffect_sizesSF12MCS <- eta_squared(LMEresultSF12MCS, partial = TRUE)
+avcSF12MCS$`Partial eta^2` <- round(avceffect_sizesSF12MCS$Eta2_partial, 3)
+```
+
+Prepare a table of the model coefficients along with their confidence intervals and p-values.
+
+```{r}
+coefficientsSF12MCS <- summary(LMEresultSF12MCS)$coefficients
+coefficientsSF12MCS <- data.frame(coefficientsSF12MCS)
+
+confIntSF12MCS <- confint(LMEresultSF12MCS)
+confIntSF12MCS <- data.frame(confIntSF12MCS)
+
+confIntSF12MCS$X2.5.. <- round(confIntSF12MCS$X2.5.., 3)
+confIntSF12MCS$X97.5.. <- round(confIntSF12MCS$X97.5.., 3)
+
+coefficientsSF12MCS$Pr...t.. <- ifelse(coefficientsSF12MCS$Pr...t.. <= 0.001, "< 0.001", round(coefficientsSF12MCS$Pr...t.., digits = 3))
+coefficientsSF12MCS$Estimate <- round(coefficientsSF12MCS$Estimate, 3)
+
+tableSF12MCS <- cbind(coefficientsSF12MCS$Estimate, confIntSF12MCS[-c(1:2),], coefficientsSF12MCS$Pr...t..)
+colnames(tableSF12MCS) <- c("Estimate", "lower95%CI", "Upper95%CI", "p-value")
+```
+
+Perform post-hoc pairwise comparison for the interaction of Time and Group. Most propably have to install package "pbkrtest" with command : install.packages("pbkrtest").
+
+```{r}
+#Install missing package by removing comment from next line:
+#install.packages("pbkrtest")
+posthocSF12MCS <- lsmeans::lsmeans(LMEresultSF12MCS, pairwise ~ Time*Group, adjust = 'bonferroni')$contrasts
+posthocconintSF12MCS <- confint(posthocSF12MCS)
+posthocSF12MCS <- data.frame(posthocSF12MCS)
+posthocconintSF12MCS <- data.frame(posthocconintSF12MCS)
+posthocSF12MCS <- cbind(posthocSF12MCS, posthocconintSF12MCS[5:6])
+colnames(posthocSF12MCS) <- c("Contrast", "Estimate", "SE", "df", "t-ratio", "p-value", "lower CI", "Upper CI")
+```
+
+Generate emmeans object for contrasts and extract contrasts and calculate Cohen's d.
+
+```{r}
+emmeans_objectSF12MCS <- emmeans::emmeans(LMEresultSF12MCS, ~ Time*Group)
+posthocSF12MCS$CohenD <- with(posthocSF12MCS, round(Estimate / SE, 3))
+```
+
+Generate plots for assumptions.
+
+```{r}
+plot(LMEresultSF12MCS)
+Sys.sleep(1)  # Pause for 1 second
+qqnorm(residuals(LMEresultSF12MCS))
+```
+
+Calculate group-level averages and standard deviations.
+
+```{r}
+group_avgSF12MCS <- DansData %>%
+  group_by(Group, Time) %>%
+  summarise(
+    Average = mean(SF12MCS, na.rm = TRUE), 
+    SD = sd(SF12MCS, na.rm = TRUE),
+    SE = SD / sqrt(n()),
+    .groups = 'drop'
+  )
+```
+
+Create the spaghetti plot with individual and group-level change indicators
+
+```{r}
+ggplot() +
+  geom_line(data = DansData, aes(x = Time, y = SF12MCS, group = ParticipantCode), alpha = 0.3) +
+  geom_point(data = DansData, aes(x = Time, y = SF12MCS, group = ParticipantCode), size = 2, shape = 21, fill = "white") +
+  geom_line(data = group_avgSF12MCS, aes(x = Time, y = Average, group = Group, color = Group), size = 1.2) +
+  geom_point(data = group_avgSF12MCS, aes(x = Time, y = Average, color = Group), size = 3) +
+  facet_grid(. ~ Group) +
+  labs(title = "Spaghetti plot of outcome over time by treatment group", 
+       y = "SF12MCS", 
+       x = "Time") +
+  scale_color_brewer(palette = "Set1") +
+  theme_minimal()
+```
+
+Create a box plot.
+
+```{r}
+qplot(interaction(Time, Group), SF12MCS, data = DansData, geom = "boxplot") + aes(fill = Group) +
+  theme(axis.text = element_text(size = 8),
+        legend.text = element_text(size = 8),
+        legend.position = "top",
+        legend.title = element_text(size = 9),
+        axis.title = element_text(size = 10),
+        plot.title = element_text(size = 10, face = "bold")) + 
+  scale_fill_brewer(palette ="Paired") +
+  labs(title = "Box plot of SF12MCS over time by treatment group", y = "SF12MCS", x = "Time, Treatment group") + guides(fill=guide_legend(title="Treatment Group"))
+
+```
+
+Create a raincloud plot
+
+```{r}
+ggplot(DansData, aes(x = interaction(Time, Group), y = SF12MCS, fill = Group)) +
+  ggdist::stat_halfeye(
+    adjust = 0.5, 
+    justification = -0.2, 
+    .width = 0, 
+    point_colour = NA
+  ) + 
+  geom_boxplot(
+    width = 0.2, 
+    outlier.shape = NA, 
+    alpha = 0.5
+  ) +
+  geom_jitter(
+    aes(color = Group), 
+    width = 0.1, 
+    alpha = 0.5
+  ) +
+  labs(
+    title = "Raincloud Plot of SF12MCS",
+    x = "Time and Treatment Group",
+    y = "SF12MCS"
+  ) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+```
+
+Create a violin plot
+
+```{r}
+ggplot(DansData, aes(x = interaction(Time, Group), y = SF12MCS, fill = Group)) +
+  geom_violin(trim = FALSE, alpha = 0.7) +  # Violin plot showing distributions
+  geom_boxplot(width = 0.2, position = position_dodge(width = 0.9), outlier.shape = NA, alpha = 0.5) +  # Add a boxplot overlay
+  geom_jitter(width = 0.1, size = 1, alpha = 0.5) +  # Add individual data points
+  labs(
+    title = "Violin Plot of SF12MCS by Time and Group",
+    x = "Time and Group",
+    y = "SF12MCS",
+    fill = "Group"
+  ) +
+  scale_fill_brewer(palette = "Set2") +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+
+```
+
+Create interaction plot
+
+```{r}
+ggplot(group_avgSF12MCS, aes(x = Time, y = Average, color = Group, group = Group)) +
+  geom_line(size = 1.2) +  # Line for group means
+  geom_point(size = 3) +  # Points for group means
+  geom_errorbar(aes(ymin = Average - SE, ymax = Average + SE), width = 0.2) +  # Error bars
+  labs(
+    title = "Interaction Plot of SF12MCS by Time and Group",
+    x = "Time",
+    y = "Mean SF12MCS",
+    color = "Group"
+  ) +
+  theme_minimal() +
+  scale_color_brewer(palette = "Set1") +
+  theme(
+    legend.position = "top",
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+```
+
+Create bar charts
+
+```{r}
+ggplot(group_avgSF12MCS, aes(x = interaction(Time, Group), y = Average, fill = Group)) +
+  geom_bar(stat = "identity", position = position_dodge(), alpha = 0.8) +  # Bars for means
+  geom_errorbar(
+    aes(ymin = Average - SE, ymax = Average + SE),
+    width = 0.2,
+    position = position_dodge(0.9)
+  ) +  # Error bars for SE
+  labs(
+    title = "Bar Chart of SF12MCS with Mean and SE",
+    x = "Time and Group",
+    y = "Mean SF12MCS",
+    fill = "Group"
+  ) +
+  scale_fill_brewer(palette = "Set2") +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+```
+
+Print tables
+
+```{r}
+print(avcSF12MCS)
+print(tableSF12MCS)
+print(posthocSF12MCS)
+print(group_avgSF12MCS)
+```

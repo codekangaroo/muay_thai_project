@@ -1,0 +1,79 @@
+---
+title: "Box Plot base code"
+author: "Petri Haavisto"
+format: html
+editor: visual
+---
+
+## Base Code for Box Plots
+
+Here we are using a data set that is built in R.
+
+First load library tidyverse
+
+```{r}
+library(tidyverse)
+```
+
+Then we load our test data
+
+```{r}
+data()
+view(msleep)
+names(msleep)
+```
+
+Let's pipe data in to the plot.
+
+```{r}
+msleep |> 
+  drop_na(vore) |> #use this if you have NA variables
+  ggplot(aes(vore, sleep_total))+ # x and y axis
+  geom_boxplot()+
+  coord_flip()+ # do we want vertical or horizontal?
+  theme_bw()
+```
+
+Testing the density plot.
+
+```{r}
+msleep |> 
+  drop_na(vore) |> 
+  ggplot(aes(sleep_total))+
+  geom_density()+
+  facet_wrap(~vore)
+  theme_bw
+```
+
+Testing histograms too.
+
+```{r}
+msleep |> 
+  drop_na(vore) |> 
+  ggplot(aes(sleep_total))+
+  geom_histogram()+
+  facet_wrap(~vore)
+  theme_bw
+```
+
+Let's use some colors.
+
+```{r}
+msleep |> 
+  drop_na(vore) |> 
+  ggplot(aes(sleep_total, fill=vore))+ #or colour=vore
+  geom_density(alpha = 0.2)+ #transparency 0 to 1
+  theme_bw()
+```
+
+We can filter some variables out.
+
+```{r}
+msleep |> 
+  drop_na(vore) |> 
+  filter(vore== "herbi" | vore=="omni") |> 
+  #other way: filter(vore %in% c("carni", "omni")) |> 
+  ggplot(aes(sleep_total, fill=vore))+ #or colour=vore
+  geom_density(alpha = 0.2)+ #transparency 0 to 1
+  theme_bw()
+```

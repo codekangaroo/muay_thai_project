@@ -1,0 +1,85 @@
+---
+title: "Spider t-test"
+author: "Petri Haavisto"
+format: html
+editor: visual
+---
+
+## Spider dependent t-test
+
+1\) Load libraries
+
+```{r}
+library(conflicted)  
+library(tidyverse)
+library(pastecs)
+```
+
+2\) Create test data frame
+
+```{r}
+picture <- c(30,35,45,40,50,35,55,25,30,45,40,50)
+real <- c(40,35,50,55,65,55,50,35,30,50,60,39)
+spider <- data.frame(picture, real)
+```
+
+3)  Descriptive statistics
+
+```{r}
+stat.desc(spider, basic = FALSE, norm = TRUE)
+```
+
+4\) Using the data compute differences between picture and real conditions and check the normality for these differences.
+
+```{r}
+spider$diff <- spider$real - spider$picture
+view(spider)
+```
+
+5\) We can do normality tests using the stat.desc() function
+
+```{r}
+stat.desc(spider$diff, basic = FALSE, desc = FALSE, norm = TRUE)
+```
+
+6\) Do the t-test and view results
+
+```{r}
+dep_t_test <- t.test(spider$real, spider$picture, paired = TRUE)
+dep_t_test
+```
+
+7\) Calculate the effect size
+
+```{r}
+t <- dep_t_test$statistic[[1]]
+df <- dep_t_test$parameter[[1]]
+r <- sqrt(t^2/(t^2+df))
+round(r, 3)
+```
+
+8\) Let's plot box plot and error bars showing confidence intervals for spider data. First data to the long format.
+
+```{r}
+Group <- gl(2, 12, labels= c("Picture", "Real Spider"))
+Anxiety <- c(30, 35, 45, 40, 50, 35, 55, 25, 30, 45, 40, 50, 40, 35, 50, 55, 65, 55, 50, 35, 30, 50, 60, 39)
+spiderLong <- data.frame(Group, Anxiety)
+view(spiderLong)
+```
+
+9\) Boxplot
+
+```{r}
+spiderBoxplot <- ggplot(spiderLong, aes(Group, Anxiety))
+spiderBoxplot + geom_boxplot() + labs(x = "Type of Stimulus", y = "Anxiety") +
+scale_y_continuous(limits = c(0, 100), breaks = seq(from = 0, to = 100, by = 10))
+```
+
+10\) Error bar chart:
+
+```{r}
+bar <- ggplot(spiderLong, aes(Group, Anxiety))
+bar + stat_summary(fun.y = mean, geom = "bar", fill = "White", colour = "Black") +
+stat_summary(fun.data = mean_cl_normal, geom = "pointrange") + labs(x = "Type of
+Stimulus", y = "Anxiety") + scale_y_continuous(limits = c(0, 65), breaks = seq(from= 0, to = 65, by = 10))
+```

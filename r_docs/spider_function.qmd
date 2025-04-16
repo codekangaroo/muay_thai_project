@@ -1,0 +1,78 @@
+---
+title: "Spider_function"
+format: html
+editor: visual
+---
+
+## Testing function to adjust spider data
+
+1 Load Libraries
+
+```{r}
+library(conflicted)  
+library(tidyverse)
+library(pastecs)
+library(reshape2)
+```
+
+2 Create data frame
+
+```{r}
+picture <- c(30,35,45,40,50,35,55,25,30,45,40,50)
+real <- c(40,35,50,55,65,55,50,35,30,50,60,39)
+spider <- data.frame(picture, real)
+```
+
+3 Function to adjust values
+
+```{r}
+rmMeanAdjust<-function(dataframe)
+{
+  varNames<-names(dataframe)
+  pMean<-(dataframe[,1] + dataframe[,2])/2
+  grandmean<-mean(c(dataframe[,1], dataframe[,2]))
+  adj<-grandmean-pMean
+  varA_adj<-dataframe[,1] + adj
+  varB_adj<-dataframe[,2] + adj
+  output<-data.frame(varA_adj, varB_adj)
+  names(output)<-c(paste(varNames[1], "Adj", sep = "_"), paste(varNames[2], "_Adj",   sep = "_"))
+  return(output)
+}
+```
+
+4 Run function
+
+```{r}
+adjusted_spider <- rmMeanAdjust(spider)
+view(adjusted_spider)
+```
+
+5 Create a long view, first add an id to identify rows.
+
+```{r}
+adjusted_spider$id<-gl(12, 1, labels = c(paste("P", 1:12, sep = "_")))
+view(adjusted_spider)
+```
+
+6 And then data to the long view
+
+```{r}
+long_spider<-melt(adjusted_spider, id = c("id"), measured = c("picture_adj", "real_adj"))
+```
+
+```{r}
+names(long_spider)<-c("id", "Group", "Anxiety_Adj")
+long_spider$Group<-factor(long_spider$Group, labels = c("Spider Picture", "Real
+Spider"))
+view(long_spider)
+```
+
+7 Create box plot with error bars
+
+```{r}
+bar <- ggplot(long_spider, aes(Group, Anxiety_Adj))
+bar + stat_summary(fun = mean, geom = "bar", fill = "White", colour = "Black") +
+stat_summary(fun.data = mean_cl_normal, geom = "pointrange") + labs(x = "Type of
+Stimulus", y = "Anxiety") + scale_y_continuous(limits = c(0, 70), breaks = seq(from =
+0, to = 70, by = 10))
+```

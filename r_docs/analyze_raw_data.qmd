@@ -1,0 +1,69 @@
+---
+title: "Dans data script"
+format: html
+editor: visual
+---
+
+## Data analyze for Dan's data with LMER model
+
+1 Load libraries
+
+```{r}
+library(conflicted)  
+library(tidyverse)
+library(lmerTest)
+library(lsmeans)
+library(emmeans)
+library(dplyr)
+library(ggplot2)
+library(effectsize)
+library(pwr)
+library(ggdist)
+conflict_prefer("filter", "dplyr")
+conflict_prefer("lag", "dplyr")
+conflicts_prefer(lmerTest::lmer)
+```
+
+Data from CSV-file to the structure
+
+```{r}
+raw <- here::here("data/raw_data.csv") |> readr::read_csv()
+```
+
+If you need to check all the raw data, you can do it here:
+
+```{r}
+view(raw)
+```
+
+Next we filter only certain columns. Change value '**SF12MCS**' when you work with different column.
+
+```{r}
+df <- raw |> 
+  select(ParticipantCode, Group, Time, BREF_PSYCHOL)
+```
+
+View data to check that everything is in order. Good idea to check against excel-file.
+
+```{r}
+view(df)
+str(df)
+```
+
+Fit linear mixed effects model. We call this model simply 'M1'. Run summary to see that values look right. Change value '**SF12MCS**' when you work with different column.
+
+```{r}
+M1 <- lmer(BREF_PSYCHOL ~ Time*Group+(1|ParticipantCode),data=df)
+summary(M1)
+```
+
+Run ANOVA on model M1 and calculate effect sizes (η²)
+
+```{r}
+avc = anova(M1)
+avc <- avc[,c(1:3,5,6)]
+colnames(avc)<-c("Sum Sq", "Mean sq","DF", "F-value", "p-value")
+avc_effect_sizes <- eta_squared(M1, partial = TRUE)
+avc$`Partial eta^2` <- round(avc_effect_sizes$Eta2_partial, 3)
+view(avc)
+```

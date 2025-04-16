@@ -1,0 +1,92 @@
+---
+title: "weight_subjects"
+author: "Petri Haavisto"
+format: html
+editor: visual
+---
+
+## Linear mixed effect models - random slopes and interactions
+
+```{r}
+library(conflicted)  
+library(tidyverse)
+library(sjPlot)
+library(lmerTest)
+conflict_prefer("filter", "dplyr")
+conflict_prefer("lag", "dplyr")
+conflicts_prefer(lmerTest::lmer)
+```
+
+import the csv file
+
+```{r}
+df <- here::here("data/weight_subject.csv") |> readr::read_csv()
+```
+
+We can have look of data.
+
+```{r}
+view(df)
+```
+
+Fitting a model. (arrow with ALT + - )
+
+```{r}
+M4 <- lmer(Weight ~ Weeks+(1|Subjects), REML=F, data=df)
+summary(M4)
+```
+
+Above Intercept 89.7750 and Weeks(slope) -2.9750 are fixed effects.
+
+Extract random effects. Here for example first person intercept is 11.391193 above the overall intercept. In this case his starting weight is 89.7750 + 11.391193 = 101.166...
+
+```{r}
+ranef(M4)
+```
+
+Next let's allow also random slopes since people lose weight with different speeds. So we added Weeks inside the parenthesis.
+
+```{r}
+M3 <- lmer(Weight ~ Weeks+(1 + Weeks|Subjects), REML=F, data=df)
+summary(M3)
+```
+
+Let's have look. Now Subjects have different slopes as well.
+
+```{r}
+ranef(M3)
+```
+
+Above we can see for example that subject 1 has weeks slope -0.3533220 steeper than average slope. From **Corr -0.88** we can see that people with higher initial weight lose weight faster than people with lower initial weight (this is expected).
+
+Next we add Diet to fixed effects.
+
+```{r}
+M2 <- lmer(Weight ~ Weeks+Diet+(1|Subjects), REML=F, data=df)
+summary(M2)
+```
+
+Above we can see that individual on Diet B has about 16 kg less weight at the starting point.
+
+Let's have look:
+
+```{r}
+ranef(M2)
+```
+
+Next we allow different Diets to have different slopes.
+
+```{r}
+M1 <- lmer(Weight ~ Weeks*Diet+(1|Subjects), REML=F, data=df)
+summary(M1)
+```
+
+Above we can see that slope on Diet A (that is our baseline) is -3.4000 and slope on Diet B is -3.4 + 0.85 = -2.55. Notice that interaction 0.06630 tells us that there is no significant difference in slopes of these two Diets so there is no significant difference in weight loss between diets.
+
+Let's do **ANOVA**.
+
+```{r}
+anova(M1, M2)
+```
+
+Above Pr(\>Chisq) value 0.06092 tells us that M1 is not significantly better model than M2.

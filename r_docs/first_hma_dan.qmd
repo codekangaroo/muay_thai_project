@@ -1,0 +1,63 @@
+---
+title: "visualizing data"
+author: "Petri Haavisto"
+format: html
+editor: visual
+---
+
+## Preparations before we start
+
+Installing tidyverse and "here" packages (one time\*). Here function returns the path of your current project. These are installed from CRAN (Comprehensive R Archive Network).
+
+\*unfortunately packages need to be re-installed when R/RStudio is re-installed/updated
+
+```{r}
+# Install from CRAN
+install.packages("tidyverse")
+install.packages("here")
+```
+
+Let's load whole tidyverse ecosystem
+
+```{r}
+library(tidyverse)
+```
+
+## Start working with data
+
+We start by loading the data file
+
+```{r}
+hma_tib <- here::here("data/raw_data.csv") |> readr::read_csv()
+```
+
+Let's have glimpse of data
+
+```{r}
+glimpse(hma_tib)
+```
+
+That wasn't very helpful so let's divide data to different groups starting with first one:
+
+```{r}
+inter1 <- hma_tib |> 
+  filter(Group == "InterV_PRE_1")
+```
+
+glimpse of new group:
+
+```{r}
+glimpse(inter1)
+```
+
+Plot of relationships of InterV-group
+
+```{r}
+#na.rm removes empty values without warning
+#added fourth group here (4 = "Unknown")
+
+gb <- ggplot(inter1, aes(x  = Living_with_1Single_2Married_3living_together)) +
+  geom_bar() +
+  theme(axis.title.x = element_blank())
+gb +  scale_x_discrete(limits=c("Single", "Married", "Living together", "Unknown"))
+```

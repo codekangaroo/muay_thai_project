@@ -6,7 +6,7 @@ editor: visual
 
 ## Data analyze for Dan's data with LMER model
 
-## Main analyze file! Test comment...
+## Main analyze file!
 
 1 Load libraries
 
